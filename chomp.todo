@@ -2,13 +2,14 @@
 chomp test todo:
  ✔ make a doc @done (13-07-20 21:38)
  ✔ look into glut, get a sample proj running @done (13-07-20 22:12)
- ☐ make a proj, name it, put this todo doc in there, and get it into github
-- great for showing my thinking overtime, code history, etc!
-- write a blog post style log as i go
-- include pictures cuz that's awesome
+ ✔ make a proj, name it, put this todo doc in there, and get it into github @done (13-07-20 22:45)
+  - great for showing my thinking overtime, code history, etc!
+  - write a blog post style log as i go
+  - include pictures cuz that's awesome
  ☐ render 1k random points (hey look, all the rendering code is done!)
  ☐ block out placeholder data structures, w just pos/vel basics
  ☐ do update loop, timing for simulation step
+ ☐ re-examine the glut sample code to know exactly what it's doing, cull out what's unnecessary or improper
  ☐ begin brute force simple style implementation of test
 
 

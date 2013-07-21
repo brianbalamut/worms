@@ -6,7 +6,6 @@
   <ItemGroup>
     <ClInclude Include="freeglut_ext.h" />
     <ClInclude Include="freeglut_std.h" />
-    <ClInclude Include="glut.h" />
     <ClInclude Include="freeglut.h" />
   </ItemGroup>
 </Project>

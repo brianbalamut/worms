@@ -11,3 +11,8 @@
 *.lai
 *.la
 *.a
+chomp.doc
+worms.sln.docstates.suo
+worms.suo
+worms.vcxproj.user
+_intermediate/
