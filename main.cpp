@@ -19,8 +19,9 @@ int main(int argc, char* args[])
 
     // opengl init (2d ortho cam)
     gluOrtho2D(0.0, SCREEN_WIDTH, 0.0, SCREEN_HEIGHT);
-    glClearColor(0.0f, 0.1f, 0.0f, 1.0f);   
+    glClearColor(0.0f, 0.0f, 0.1f, 1.0f);   
     glPointSize(POINT_SIZE);
+    glColor3f(0.9f, 0.0f, 0.0f);
 
     // kick off glut loop
     glutDisplayFunc(render);

@@ -2,9 +2,9 @@
 #include "freeglut.h"
 #include <math.h>
 
-const float kAccelRate       = 1000.0f;
-const float kMaxVel          = 35.0f;
-const float kSnapThresholdSq = 5.0f*5.0f;
+const float kAccelRate       = 150.0f;
+const float kMaxVel          = 350.0f;
+const float kSnapThresholdSq = 4.0f*4.0f;
 
 //------------------------------------------------------------------------------
 
@@ -40,6 +40,7 @@ WormsApp::WormsApp()
 
 void WormsApp::update(float deltaTime)
 {
+    // update pass1 - worm heads seek towards nearest tails, and possibly attach
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = particles[i];
@@ -55,7 +56,7 @@ void WormsApp::update(float deltaTime)
                 Particle& p2 = particles[i2];
                 if( p2.prevSegment != -1 )  // only target tails
                     continue;
-                if( p2.wormId == p.wormId ) // skip segments of the same worm
+                if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
                     continue;
 
                 float distSq = vec2distSq(p.pos_x, p.pos_y, p2.pos_x, p2.pos_y);
@@ -97,13 +98,22 @@ void WormsApp::update(float deltaTime)
             p.vel_x = clampf(p.vel_x, -kMaxVel, kMaxVel);
             p.vel_y = clampf(p.vel_y, -kMaxVel, kMaxVel);
         }
-        else  // segment or tail
+    }
+
+    // update pass2 - worm segments inherit the position of their next attached segment (starting from tail -> head)
+    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
+    {
+        Particle& p = particles[i];
+        if( p.prevSegment == -1 && p.nextSegment != -1 ) // tail of a worm (of len > 1)
         {
-            // just update towards target's position
-            //targetIdx = p.nextSegment;
-            const Particle& p2 = particles[p.nextSegment];
-            p.pos_x = p2.pos_x;
-            p.pos_y = p2.pos_y;
+            // inherit next segment's position
+            for( int segCur = i, segNext = p.nextSegment; segNext != -1; segCur = segNext, segNext = particles[segNext].nextSegment )
+            {
+                Particle& pCur  = particles[segCur];
+                Particle& pNext = particles[segNext];
+                pCur.pos_x = pNext.pos_x;
+                pCur.pos_y = pNext.pos_y;
+            }
         }
     }
 }

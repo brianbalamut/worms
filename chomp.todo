@@ -12,6 +12,12 @@ chomp test todo:
  ✔ re-examine the glut sample code to know exactly what it's doing, cull out what's unnecessary or improper @done (13-07-21 09:20)
   - dont like the timer callback update loop thing, but whatever, fine for now
  ☐ begin brute force simple style implementation of test
+   ✔ get a first pass working, that's at least similar to the target app @done (13-07-21 11:42)
+   ☐ fix implementation quirks so things work as desired, w/o explosion
+   ☐ add vec2 class
+   ☐ implement explosion and looping game flow (eat, explode, scatter, repeat)
+ ☐ examine code and think about implementation; start gathering basic profiling data
+ ☐ think of ways to improve, try out different optimizations starting from high level (data access and algorithms)
 
 
 thoughts on architecture/implementation routes:
@@ -49,5 +55,12 @@ so when a worm eats another one's tail, the victim's head should become the head
 - otherwise it'd be weird to have the head be 'in the middle' after a merge
 - this is simple too - the head (w0) just connects to the tail (w1)
 
- ☐ implement attachment, following code
-need to identify worm structure in some ways: worm size (head+size1 == tail), head/tail as flags, presence of attachSeg
+worm eating is working ok now, data structures get patched up right and arent terribly setup
+the worm trail / follow part needs doing now
+- does it just follow exactly in the next segments previous pos? - if so do we need to store extra data, or do things in explicit passes, where update order matters?
+- the follow/accel towards next seg seemed to not work great, maybe it could with tuning; but i think explicit snake style trail works better
+ways to do that:
+ update pass0 - update heads, seek towards their tails, possibly attach
+ update pass1 - update worms, from tail -> head order, inheriting position from the next seg
+ think about special cases - worms that merge on that frame need to be treated right (dont accel them after attaching)
+-- this, and the search make it clear it'd be nice to have easy access to all worm tails

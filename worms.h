@@ -2,11 +2,11 @@
 
 //------------------------------------------------------------------------------
 
-const int   SCREEN_WIDTH      = 600;
+const int   SCREEN_WIDTH      = 800;
 const int   SCREEN_HEIGHT     = 600;
-const int   SCREEN_FPS        = 60;
+const int   SCREEN_FPS        = 30;
 const float POINT_SIZE        = 2;
-const int   MAX_NUM_PARTICLES = 256;
+const int   MAX_NUM_PARTICLES = 1024;
 
 //------------------------------------------------------------------------------
 
