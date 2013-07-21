@@ -1,0 +1,43 @@
+
+chomp test todo:
+ ✔ make a doc @done (13-07-20 21:38)
+ ✔ look into glut, get a sample proj running @done (13-07-20 22:12)
+ ☐ make a proj, name it, put this todo doc in there, and get it into github
+- great for showing my thinking overtime, code history, etc!
+- write a blog post style log as i go
+- include pictures cuz that's awesome
+ ☐ render 1k random points (hey look, all the rendering code is done!)
+ ☐ block out placeholder data structures, w just pos/vel basics
+ ☐ do update loop, timing for simulation step
+ ☐ begin brute force simple style implementation of test
+
+
+thoughts on architecture/implementation routes:
+pure c++, single threaded, very simple brute force style (like the sample)
+c++ multithreaded - break up render cmds from sim? simulate chunks of particles? separate search from sim? not sure how this would decompose yet
+c++ amp or cuda, sim on gpu (is the kernel complex enough to warrant this? prly not, you just like cool tech)
+
+implement simply first, get it working dirty, then think about the problem more with an existing implementation to examine
+do a light profiling pass to feel out the existing bottlenecks
+go wide and do mini experiments
+pick an implementation, do it clean and proper, then iterate and finish
+
+
+misc thoughts and ideas:
+naming - i like these words: 'worms', 'eating', 'segments', 'chase' and 'target', head + tail,
+worms dont need to search for targets every frame - maybe once per N frames (8 or so?) or when their target distance is past some threshold (maybe cheating, but that's gamedev!)
+- they prly dont all need to have targets anyway if search is bad - some can just move straight or turn semi randomly or towards the center, cheat it real hard
+debugging: want on screen text (or console output, prefer on screen - maybe just title bar hax), want fixed frame rate and controlled timescale (slo mo)
+simulating a big amount of individual particles seems simple (and brute force-able), but there's probably room for cleverness in how to handle the worms as they're composed of individual dots
+- want one big chunk of data that doesn't change, unless there's a benefit in condensing things down as the # creates dwindles
+- maybe intrusive linked lists for all the segments of a worm (but this implies they're spread over memory)
+- maybe there's a way to simulate every particle in order and not care about worms (ideal memory access) - if chasing, chase; if attached, just move towards next segment?
+explosion - try to hack a peggle style zoom in money shot with time paused, this guy is the survivor and deserves some glory
+- also particles bounce off screen edges as walls, slow down to zero vel, then restart the sim from there! (feature creepin)
+
+
+initial hypothesis:
+data structures and memory access patterns are key, esp. regarding the target search
+memory size doesnt seem scary (1MB = 16k x 64 byte structures for example, which seems largish anyway)
+lots of room for cleverness, just let the profiler pick where to be clever :D
+
