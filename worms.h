@@ -5,7 +5,7 @@
 
 const int   SCREEN_WIDTH      = 800;
 const int   SCREEN_HEIGHT     = 600;
-const int   SCREEN_FPS        = 30;
+const int   SCREEN_FPS        = 60;
 const float POINT_SIZE        = 2;
 const int   MAX_NUM_PARTICLES = 1024;
 
@@ -38,6 +38,21 @@ public:
 inline float clampf(float value, float min, float max)
 {
     return (value < min ? min : (value > max ? max : value));
+}
+
+inline float cross2d(Vector2 const& v1, Vector2 const& v2)
+{
+    return (v1.x*v2.y) - (v1.y*v2.x);
+}
+
+inline Vector2 perp2d(Vector2 const& v1)
+{
+    return Vector2(v1.y, -v1.x);
+}
+
+inline float sign(float f)
+{
+    return f < 0.0f ? -1.0f : 1.0f;
 }
 
 //------------------------------------------------------------------------------

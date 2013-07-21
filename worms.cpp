@@ -1,8 +1,8 @@
 #include "worms.h"
 #include "freeglut.h"
 
-const float kAccelRate       = 150.0f;
-const float kMaxVel          = 350.0f;
+const float kAccelRate       = 750.0f;
+const float kMaxVel          = 250.0f;
 const float kSnapThresholdSq = 4.0f*4.0f;
 
 //------------------------------------------------------------------------------
@@ -67,10 +67,26 @@ void WormsApp::update(float deltaTime)
                 }
             }
 
-            // seek towards target -- should normalize and apply fixed accel rate
-            const Particle& targetP = particles[targetIdx];
-            accel = (targetP.pos - p.pos).Normalized();
-            accel *= kAccelRate;
+            if( targetIdx == -1 ) // couldnt find target, must be the last worm!
+                return;
+
+            // seek towards target
+            Vector2 targetPos = particles[targetIdx].pos;
+            Vector2 posToTarget = targetPos - p.pos;
+            float dot = p.vel.Dot(posToTarget.Normalized());
+            if( dot <= 0.0f || dot > 0.8f ) // target is behind us, or approx in front of us
+            {
+                // accelerate directly towards target at constant rate
+                accel = (targetPos - p.pos).Normalized();
+                accel *= kAccelRate;
+            }
+            else
+            {
+                // find if left or right, turn in that dir
+                float signToTarget = sign(cross2d(p.vel, posToTarget));
+                accel = perp2d(p.vel).Normalized();
+                accel *= kAccelRate * signToTarget;
+            }
 
             // symplectic integration
             p.vel += accel * deltaTime;
@@ -79,10 +95,22 @@ void WormsApp::update(float deltaTime)
             // clamp vel
             p.vel.x = clampf(p.vel.x, -kMaxVel, kMaxVel);
             p.vel.y = clampf(p.vel.y, -kMaxVel, kMaxVel);
+
+            // clamp pos, reflect vel on collide
+            if( p.pos.x < 0.0f || p.pos.x > (float)SCREEN_WIDTH )
+            {
+                p.pos.x = clampf(p.pos.x, 0.0f, (float)SCREEN_WIDTH);
+                p.vel.x *= -1.0f;
+            }
+            if( p.pos.y < 0.0f || p.pos.y > (float)SCREEN_HEIGHT )
+            {
+                p.pos.y = clampf(p.pos.y, 0.0f, (float)SCREEN_HEIGHT);
+                p.vel.y *= -1.0f;
+            }
         }
     }
 
-    // update pass2 - worm segments inherit the position of their next attached segment (starting from tail -> head)
+    // update pass2 - worm segments inherit the position of their next attached segment (going from tail -> head)
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = particles[i];
