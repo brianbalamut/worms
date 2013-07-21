@@ -6,6 +6,7 @@
 const int   SCREEN_WIDTH      = 800;
 const int   SCREEN_HEIGHT     = 600;
 const int   SCREEN_FPS        = 60;
+const int   TIMER_MS          = 16;
 const float POINT_SIZE        = 1;
 const int   MAX_NUM_PARTICLES = 1024*4;
 

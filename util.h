@@ -47,6 +47,11 @@ inline float sign(float f)
     return f < 0.0f ? -1.0f : 1.0f;
 }
 
+inline float squared(float f)
+{
+    return f*f;
+}
+
 inline float lerp(float t, float a, float b)
 {
     return a * (1.0f - t) + b * t;

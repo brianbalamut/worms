@@ -174,11 +174,23 @@ void WormsApp::updateTails(float deltaTime)
                 Particle& pCur  = m_particles[segCur];
                 Particle& pNext = m_particles[segNext];
 
-                float smoothTime = 0.1f;
-                SmoothSpringCD(pCur.pos.x, pNext.pos.x, pCur.vel.x, deltaTime, smoothTime);
-                SmoothSpringCD(pCur.pos.y, pNext.pos.y, pCur.vel.y, deltaTime, smoothTime);
+                float dist = pCur.pos.DistSq(pNext.pos);
+                if( dist < squared(3.5f) )
+                {
+                    pCur.pos = pNext.pos;
+                    pCur.vel = pNext.vel;
+                }
+                else
+                {
+                    float smoothTime = 0.05f;
+                    SmoothSpringCD(pCur.pos.x, pNext.pos.x, pCur.vel.x, deltaTime, smoothTime);
+                    SmoothSpringCD(pCur.pos.y, pNext.pos.y, pCur.vel.y, deltaTime, smoothTime);
+                    pCur.pos += pCur.vel * deltaTime;
 
-                pCur.pos += pCur.vel * deltaTime;
+                    // clamp vel
+                    //pCur.vel.x = clampf(pCur.vel.x, -kMaxVel, kMaxVel);
+                    //pCur.vel.y = clampf(pCur.vel.y, -kMaxVel, kMaxVel);
+                }
             }
         }
     }
