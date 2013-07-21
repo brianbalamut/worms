@@ -11,14 +11,19 @@ chomp test todo:
  ✘ do update loop, timing for simulation step @cancelled (13-07-20 23:33)
  ✔ re-examine the glut sample code to know exactly what it's doing, cull out what's unnecessary or improper @done (13-07-21 09:20)
   - dont like the timer callback update loop thing, but whatever, fine for now
- ☐ begin brute force simple style implementation of test
+ ✔ begin brute force simple style implementation of test @done (13-07-21 14:03)
    ✔ get a first pass working, that's at least similar to the target app @done (13-07-21 11:42)
    ✔ fix/tune implementation so things work as desired, w/o explosion @done (13-07-21 12:13)
    ✔ add vec2 class, cleanup code @done (13-07-21 12:30)
    ✔ implement screen edge collision @done (13-07-21 13:01)
    ✔ tweak/change things to make it converge to one worm easier @done (13-07-21 13:35)
-   ☐ implement explosion and looping game flow (eat, explode, scatter, repeat)
+   ✔ implement explosion and looping game flow (eat, explode, scatter, repeat) @done (13-07-21 14:03)
+ ☐ polish
+   ☐ change the trail to update by motion, not just swap pos up the chain (doesnt look/feel cool as is)
+   ☐ implement better explode (make it last a couple seconds, tick integration)
+   ☐ do another pass of tuning or code tweaks to make the seek a little better
  ☐ examine code and think about implementation; start gathering basic profiling data
+   ☐ check scalability by bumping up # particles til it breaks
  ☐ think of ways to improve, try out different optimizations starting from high level (data access and algorithms)
 
 
@@ -66,3 +71,8 @@ ways to do that:
  update pass1 - update worms, from tail -> head order, inheriting position from the next seg
  think about special cases - worms that merge on that frame need to be treated right (dont accel them after attaching)
 -- this, and the search make it clear it'd be nice to have easy access to all worm tails
+
+thoughts on seeking, motion, etc:
+perhaps try varying acceleration based on distance, based on current velocity, or something to account for overshooting
+maybe lead the target based on their vel (once each particle is using their velocity again)
+try springing the segments together once attached?

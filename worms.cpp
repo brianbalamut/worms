@@ -2,8 +2,8 @@
 #include "freeglut.h"
 
 const float kAccelRate       = 750.0f;
-const float kMaxVel          = 250.0f;
-const float kSnapThresholdSq = 4.0f*4.0f;
+const float kMaxVel          = 275.0f;
+const float kSnapThresholdSq = 6.0f*6.0f;
 
 //------------------------------------------------------------------------------
 
@@ -73,7 +73,6 @@ WormsApp::UpdateState WormsApp::updateHeads(float deltaTime)
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
-        Vector2 accel;
         int targetIdx = -1;
 
         if( p.nextSegment != -1 ) // head of a worm
@@ -97,6 +96,7 @@ WormsApp::UpdateState WormsApp::updateHeads(float deltaTime)
                     targetIdx = i2;
                     p.nextSegment = i2;
                     p2.prevSegment = i;
+                    p.vel.x = p.vel.y = 0.0f;
                     for( int seg = i; seg != -1; seg = m_particles[seg].prevSegment ) // fixup wormIds
                         m_particles[seg].wormId = p2.wormId;
                     break;
@@ -112,42 +112,46 @@ WormsApp::UpdateState WormsApp::updateHeads(float deltaTime)
         if( targetIdx == -1 ) // couldnt find target, must be the last worm!
             return kUS_LastWorm;
 
-        // seek towards target
-        Vector2 targetPos = m_particles[targetIdx].pos;
-        Vector2 posToTarget = targetPos - p.pos;
-        float dot = p.vel.Dot(posToTarget.Normalized());
-        if( dot <= 0.0f || dot > 0.8f ) // target is behind us, or approx in front of us
+        if( p.nextSegment == -1 ) // still unattached
         {
-            // accelerate directly towards target at constant rate
-            accel = (targetPos - p.pos).Normalized();
-            accel *= kAccelRate;
-        }
-        else
-        {
-            // find if left or right, turn in that dir
-            float signToTarget = sign(cross2d(p.vel, posToTarget));
-            accel = perp2d(p.vel).Normalized();
-            accel *= kAccelRate * signToTarget;
-        }
+            // seek towards target
+            Vector2 accel;
+            Vector2 targetPos = m_particles[targetIdx].pos;
+            Vector2 posToTarget = targetPos - p.pos;
+            float dot = p.vel.Dot(posToTarget.Normalized());
+            if( dot <= 0.0f || dot > 0.9f ) // target is behind us, or approx in front of us
+            {
+                // accelerate directly towards target at constant rate
+                accel = (targetPos - p.pos).Normalized();
+                accel *= kAccelRate;
+            }
+            else
+            {
+                // find if left or right, turn in that dir
+                float signToTarget = sign(cross2d(p.vel, posToTarget));
+                accel = perp2d(p.vel).Normalized();
+                accel *= kAccelRate * signToTarget;
+            }
 
-        // symplectic integration
-        p.vel += accel * deltaTime;
-        p.pos += p.vel * deltaTime;
+            // symplectic integration
+            p.vel += accel * deltaTime;
+            p.pos += p.vel * deltaTime;
 
-        // clamp vel
-        p.vel.x = clampf(p.vel.x, -kMaxVel, kMaxVel);
-        p.vel.y = clampf(p.vel.y, -kMaxVel, kMaxVel);
+            // clamp vel
+            p.vel.x = clampf(p.vel.x, -kMaxVel, kMaxVel);
+            p.vel.y = clampf(p.vel.y, -kMaxVel, kMaxVel);
 
-        // clamp pos, reflect vel on collide
-        if( p.pos.x < 0.0f || p.pos.x > (float)SCREEN_WIDTH )
-        {
-            p.pos.x = clampf(p.pos.x, 0.0f, (float)SCREEN_WIDTH);
-            p.vel.x *= -1.0f;
-        }
-        if( p.pos.y < 0.0f || p.pos.y > (float)SCREEN_HEIGHT )
-        {
-            p.pos.y = clampf(p.pos.y, 0.0f, (float)SCREEN_HEIGHT);
-            p.vel.y *= -1.0f;
+            // clamp pos, reflect vel on collide
+            if( p.pos.x < 0.0f || p.pos.x > (float)SCREEN_WIDTH )
+            {
+                p.pos.x = clampf(p.pos.x, 0.0f, (float)SCREEN_WIDTH);
+                p.vel.x *= -1.0f;
+            }
+            if( p.pos.y < 0.0f || p.pos.y > (float)SCREEN_HEIGHT )
+            {
+                p.pos.y = clampf(p.pos.y, 0.0f, (float)SCREEN_HEIGHT);
+                p.vel.y *= -1.0f;
+            }
         }
     }
 
@@ -156,7 +160,7 @@ WormsApp::UpdateState WormsApp::updateHeads(float deltaTime)
 
 //------------------------------------------------------------------------------
 
-void WormsApp::updateTails(float /*deltaTime*/)
+void WormsApp::updateTails(float deltaTime)
 {
     // update pass2 - worm segments inherit the position of their next attached segment (going from tail -> head)
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
@@ -169,7 +173,12 @@ void WormsApp::updateTails(float /*deltaTime*/)
             {
                 Particle& pCur  = m_particles[segCur];
                 Particle& pNext = m_particles[segNext];
-                pCur.pos = pNext.pos;
+
+                float smoothTime = 0.1f;
+                SmoothSpringCD(pCur.pos.x, pNext.pos.x, pCur.vel.x, deltaTime, smoothTime);
+                SmoothSpringCD(pCur.pos.y, pNext.pos.y, pCur.vel.y, deltaTime, smoothTime);
+
+                pCur.pos += pCur.vel * deltaTime;
             }
         }
     }

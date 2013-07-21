@@ -47,3 +47,23 @@ inline float sign(float f)
     return f < 0.0f ? -1.0f : 1.0f;
 }
 
+inline float lerp(float t, float a, float b)
+{
+    return a * (1.0f - t) + b * t;
+}
+
+inline Vector2 lerp2d(float t, Vector2 a, Vector2 b)
+{
+    return a * (1.0f - t) + b * t;
+}
+
+inline float SmoothSpringCD(float from, float to, float &vel, float const deltaTime, float smoothTime)
+{
+    float omega = 2.0f / smoothTime;
+    float x = omega * deltaTime;
+    float exp = 1.0f / (1.0f + x + 0.48f*x*x + 0.235f*x*x*x);
+    float change = from - to;
+    float temp = (vel + omega * change) * deltaTime;
+    vel = (vel - omega * temp) * exp;
+    return to + (change + temp) * exp;
+}
