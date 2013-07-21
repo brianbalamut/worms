@@ -2,10 +2,12 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="worms.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="freeglut_ext.h" />
     <ClInclude Include="freeglut_std.h" />
     <ClInclude Include="freeglut.h" />
+    <ClInclude Include="worms.h" />
   </ItemGroup>
 </Project>

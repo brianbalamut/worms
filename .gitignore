@@ -16,3 +16,5 @@ worms.sln.docstates.suo
 worms.suo
 worms.vcxproj.user
 _intermediate/
+bin/worms.ilk
+bin/worms.pdb
