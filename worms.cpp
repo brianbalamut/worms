@@ -1,16 +1,19 @@
 #include "worms.h"
 #include "freeglut.h"
 
-const float kAccelRate       = 750.0f;
-const float kMaxVel          = 275.0f;
-const float kSnapThresholdSq = 6.0f*6.0f;
+const float kAccelRateTurning = 250.0f;
+const float kAccelRateDirect  = 500.0f;
+const float kMaxVel           = 175.0f;
+const float kExplosionTime    = 1.5f;
+const float kExplosionDamp    = 0.995f;
+const float kSnapThresholdSq  = 6.0f*6.0f;
 
 //------------------------------------------------------------------------------
 
 WormsApp::WormsApp()
 {
     reset(true, false);
-    m_state = kUS_Normal;
+    setState(kUS_Normal);
 }
 
 //------------------------------------------------------------------------------
@@ -29,8 +32,8 @@ void WormsApp::reset(bool randPos, bool randVel)
 
         if( randVel )
         {
-            p.vel.x = (float)(rand() % (int)kMaxVel) - kMaxVel*0.5f;
-            p.vel.y = (float)(rand() % (int)kMaxVel) - kMaxVel*0.5f;
+            p.vel.x = (float)(rand() % (int)kMaxVel*2.0f) - kMaxVel;
+            p.vel.y = (float)(rand() % (int)kMaxVel*2.0f) - kMaxVel;
         }
         else
         {
@@ -50,24 +53,32 @@ void WormsApp::update(float deltaTime)
 {
     if( m_state == kUS_Normal )
     {
-        m_state = updateHeads(deltaTime);
+        bool lastWorm = updateHeads(deltaTime);
+        if( lastWorm )
+            setState(kUS_LastWorm);
         updateTails(deltaTime);
     }
     else if( m_state == kUS_LastWorm )
     {
         reset(false, true); // keep pos, rand vel
-        m_state = kUS_Exploding;
+        setState(kUS_Exploding);
     }
     else if( m_state == kUS_Exploding )
     {
-        m_state = kUS_Normal;
-        //updateExploding();
+        updateExploding(deltaTime);
+        if( m_stateTime >= kExplosionTime )
+        {
+            reset(false, false); // keep pos, clear vel
+            setState(kUS_Normal);
+        }
     }
+
+    m_stateTime += deltaTime;
 }
 
 //------------------------------------------------------------------------------
 
-WormsApp::UpdateState WormsApp::updateHeads(float deltaTime)
+bool WormsApp::updateHeads(float deltaTime)
 {
     // update pass1 - worm heads seek towards nearest tails, and possibly attach
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
@@ -110,7 +121,7 @@ WormsApp::UpdateState WormsApp::updateHeads(float deltaTime)
         }
 
         if( targetIdx == -1 ) // couldnt find target, must be the last worm!
-            return kUS_LastWorm;
+            return true;
 
         if( p.nextSegment == -1 ) // still unattached
         {
@@ -123,14 +134,14 @@ WormsApp::UpdateState WormsApp::updateHeads(float deltaTime)
             {
                 // accelerate directly towards target at constant rate
                 accel = (targetPos - p.pos).Normalized();
-                accel *= kAccelRate;
+                accel *= kAccelRateDirect;
             }
             else
             {
                 // find if left or right, turn in that dir
                 float signToTarget = sign(cross2d(p.vel, posToTarget));
                 accel = perp2d(p.vel).Normalized();
-                accel *= kAccelRate * signToTarget;
+                accel *= kAccelRateTurning * signToTarget;
             }
 
             // symplectic integration
@@ -155,20 +166,20 @@ WormsApp::UpdateState WormsApp::updateHeads(float deltaTime)
         }
     }
 
-    return kUS_Normal;
+    return false;
 }
 
 //------------------------------------------------------------------------------
 
 void WormsApp::updateTails(float deltaTime)
 {
-    // update pass2 - worm segments inherit the position of their next attached segment (going from tail -> head)
+    // update pass2 - worm segments chase the position of their next attached segment (going from tail -> head)
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
         if( p.prevSegment == -1 && p.nextSegment != -1 ) // tail of a worm (of len > 1)
         {
-            // inherit next segment's position
+            // chase next segment's position
             for( int segCur = i, segNext = p.nextSegment; segNext != -1; segCur = segNext, segNext = m_particles[segNext].nextSegment )
             {
                 Particle& pCur  = m_particles[segCur];
@@ -182,7 +193,7 @@ void WormsApp::updateTails(float deltaTime)
                 }
                 else
                 {
-                    float smoothTime = 0.05f;
+                    float smoothTime = 0.03f;
                     SmoothSpringCD(pCur.pos.x, pNext.pos.x, pCur.vel.x, deltaTime, smoothTime);
                     SmoothSpringCD(pCur.pos.y, pNext.pos.y, pCur.vel.y, deltaTime, smoothTime);
                     pCur.pos += pCur.vel * deltaTime;
@@ -193,6 +204,18 @@ void WormsApp::updateTails(float deltaTime)
                 }
             }
         }
+    }
+}
+
+//------------------------------------------------------------------------------
+
+void WormsApp::updateExploding(float deltaTime)
+{
+    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
+    {
+        Particle& p = m_particles[i];
+        p.pos += p.vel * deltaTime;
+        p.vel *= kExplosionDamp;
     }
 }
 

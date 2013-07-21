@@ -62,6 +62,7 @@ inline Vector2 lerp2d(float t, Vector2 a, Vector2 b)
     return a * (1.0f - t) + b * t;
 }
 
+//-- Critically damped spring smoothing -- from Game Programming Gems 4 (1.10)
 inline float SmoothSpringCD(float from, float to, float &vel, float const deltaTime, float smoothTime)
 {
     float omega = 2.0f / smoothTime;

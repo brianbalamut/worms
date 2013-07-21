@@ -40,6 +40,7 @@ class WormsApp
 
     Particle    m_particles[MAX_NUM_PARTICLES];
     UpdateState m_state;
+    float       m_stateTime;
 
 public:
     WormsApp();
@@ -48,9 +49,11 @@ public:
     void        render();
 
 private:
+    void        setState(UpdateState state) { m_state = state; m_stateTime = 0.0f; }
     void        reset(bool randPos, bool randVel);
-    UpdateState updateHeads(float deltaTime);
+    bool        updateHeads(float deltaTime);  // returns true when on last worm
     void        updateTails(float deltaTime);
+    void        updateExploding(float deltaTime);
 };
 
 //static_assert( sizeof(WormsApp) <= 1024*1024 );

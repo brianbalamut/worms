@@ -19,7 +19,7 @@ chomp test todo:
    ✔ tweak/change things to make it converge to one worm easier @done (13-07-21 13:35)
    ✔ implement explosion and looping game flow (eat, explode, scatter, repeat) @done (13-07-21 14:03)
  ☐ polish
-   ☐ change the trail to update by motion, not just swap pos up the chain (doesnt look/feel cool as is)
+   ✔ change the trail to update by motion, not just swap pos up the chain (doesnt look/feel cool as is) @done (13-07-21 16:04)
    ☐ implement better explode (make it last a couple seconds, tick integration)
    ☐ do another pass of tuning or code tweaks to make the seek a little better
  ☐ examine code and think about implementation; start gathering basic profiling data
@@ -76,3 +76,5 @@ thoughts on seeking, motion, etc:
 perhaps try varying acceleration based on distance, based on current velocity, or something to account for overshooting
 maybe lead the target based on their vel (once each particle is using their velocity again)
 try springing the segments together once attached?
+
+maybe add hotkeys for toggling vsync (it's fun watching it go really fast, but confusing), possibly other settings
