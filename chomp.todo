@@ -13,8 +13,9 @@ chomp test todo:
   - dont like the timer callback update loop thing, but whatever, fine for now
  ☐ begin brute force simple style implementation of test
    ✔ get a first pass working, that's at least similar to the target app @done (13-07-21 11:42)
-   ☐ fix implementation quirks so things work as desired, w/o explosion
-   ☐ add vec2 class
+   ✔ fix/tune implementation so things work as desired, w/o explosion @done (13-07-21 12:13)
+   ✔ add vec2 class, cleanup code @done (13-07-21 12:30)
+   ☐ implement screen edge collision
    ☐ implement explosion and looping game flow (eat, explode, scatter, repeat)
  ☐ examine code and think about implementation; start gathering basic profiling data
  ☐ think of ways to improve, try out different optimizations starting from high level (data access and algorithms)

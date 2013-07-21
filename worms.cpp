@@ -1,22 +1,9 @@
 #include "worms.h"
 #include "freeglut.h"
-#include <math.h>
 
 const float kAccelRate       = 150.0f;
 const float kMaxVel          = 350.0f;
 const float kSnapThresholdSq = 4.0f*4.0f;
-
-//------------------------------------------------------------------------------
-
-float vec2distSq(float x0, float y0, float x1, float y1)
-{
-    return (x1-x0)*(x1-x0) + (y1-y0)*(y1-y0);
-}
-
-float clampf(float value, float min, float max)
-{
-    return (value < min ? min : (value > max ? max : value));
-}
 
 //------------------------------------------------------------------------------
 
@@ -25,10 +12,10 @@ WormsApp::WormsApp()
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = particles[i];
-        p.pos_x = (float)(rand() % SCREEN_WIDTH);
-        p.pos_y = (float)(rand() % SCREEN_HEIGHT);
-        p.vel_x = 0.0f;
-        p.vel_y = 0.0f;
+        p.pos.x = (float)(rand() % SCREEN_WIDTH);
+        p.pos.y = (float)(rand() % SCREEN_HEIGHT);
+        p.vel.x = 0.0f;
+        p.vel.y = 0.0f;
 
         p.nextSegment = -1;
         p.prevSegment = -1;
@@ -44,7 +31,7 @@ void WormsApp::update(float deltaTime)
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = particles[i];
-        float accel_x, accel_y;
+        Vector2 accel;
         int targetIdx = -1;
 
         if( p.nextSegment == -1 ) // head of a worm
@@ -59,7 +46,7 @@ void WormsApp::update(float deltaTime)
                 if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
                     continue;
 
-                float distSq = vec2distSq(p.pos_x, p.pos_y, p2.pos_x, p2.pos_y);
+                float distSq = p.pos.DistSq(p2.pos);
                 if( distSq < nearestDistSq )
                 {
                     // if within range, just connect
@@ -80,23 +67,18 @@ void WormsApp::update(float deltaTime)
                 }
             }
 
-            const Particle& targetP = particles[targetIdx];
             // seek towards target -- should normalize and apply fixed accel rate
-            float x0 = sqrtf(vec2distSq(p.pos_x, p.pos_y, targetP.pos_x, targetP.pos_y));
-            accel_x = (targetP.pos_x - p.pos_x) / x0;
-            accel_y = (targetP.pos_y - p.pos_y) / x0;
-            accel_x *= kAccelRate;
-            accel_y *= kAccelRate;
+            const Particle& targetP = particles[targetIdx];
+            accel = (targetP.pos - p.pos).Normalized();
+            accel *= kAccelRate;
 
             // symplectic integration
-            p.vel_x += accel_x * deltaTime;
-            p.vel_y += accel_y * deltaTime;
-            p.pos_x += p.vel_x * deltaTime;
-            p.pos_y += p.vel_y * deltaTime;
+            p.vel += accel * deltaTime;
+            p.pos += p.vel * deltaTime;
 
             // clamp vel
-            p.vel_x = clampf(p.vel_x, -kMaxVel, kMaxVel);
-            p.vel_y = clampf(p.vel_y, -kMaxVel, kMaxVel);
+            p.vel.x = clampf(p.vel.x, -kMaxVel, kMaxVel);
+            p.vel.y = clampf(p.vel.y, -kMaxVel, kMaxVel);
         }
     }
 
@@ -111,8 +93,7 @@ void WormsApp::update(float deltaTime)
             {
                 Particle& pCur  = particles[segCur];
                 Particle& pNext = particles[segNext];
-                pCur.pos_x = pNext.pos_x;
-                pCur.pos_y = pNext.pos_y;
+                pCur.pos = pNext.pos;
             }
         }
     }
@@ -125,7 +106,7 @@ void WormsApp::render()
     glBegin(GL_POINTS);
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
-        glVertex2f(particles[i].pos_x, particles[i].pos_y);
+        glVertex2f(particles[i].pos.x, particles[i].pos.y);
     }
     glEnd();
 }
