@@ -9,5 +9,6 @@
     <ClInclude Include="freeglut_std.h" />
     <ClInclude Include="freeglut.h" />
     <ClInclude Include="worms.h" />
+    <ClInclude Include="util.h" />
   </ItemGroup>
 </Project>

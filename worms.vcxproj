@@ -56,6 +56,7 @@
     <ClInclude Include="freeglut.h" />
     <ClInclude Include="freeglut_ext.h" />
     <ClInclude Include="freeglut_std.h" />
+    <ClInclude Include="util.h" />
     <ClInclude Include="worms.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
