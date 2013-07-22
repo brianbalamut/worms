@@ -20,12 +20,12 @@ WormsApp::WormsApp()
 
 void WormsApp::reset(bool randPos, bool randVel)
 {
-    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
+    for( uint16_t i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
-        p.nextInGrid  = -1;
-        p.nextSegment = -1;
-        p.prevSegment = -1;
+        p.nextInGrid  = INVALID_INDEX;
+        p.nextSegment = INVALID_INDEX;
+        p.prevSegment = INVALID_INDEX;
         p.wormId = i;
 
         if( randPos )
@@ -48,11 +48,9 @@ void WormsApp::reset(bool randPos, bool randVel)
 
     // rebuild grid
     for( int i=0; i < GRID_COUNT; ++i )
-        m_grid[i] = -1;
-    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
+        m_grid[i] = INVALID_INDEX;
+    for( uint16_t i=0; i < MAX_NUM_PARTICLES; ++i )
         gridInsert(i);
-
-    memset(m_tailFlags, 0xFF, sizeof(m_tailFlags));
 }
 
 //------------------------------------------------------------------------------
@@ -108,16 +106,16 @@ int WormsApp::getTimerMs() const
 
 //------------------------------------------------------------------------------
 
-int WormsApp::getNearestTail(Particle const& p, float * pDistSq)
+uint16_t WormsApp::getNearestTail(Particle const& p, float * pDistSq)
 {
-    int nearestIdx = -1;
+    uint16_t nearestIdx = INVALID_INDEX;
     float nearestDistSq = 1e14f;
     int cell = getGridCell(p.pos);
     int startCell = cell;
 
-    while( nearestIdx == -1 )
+    while( nearestIdx == INVALID_INDEX )
     {
-        for( int idx = m_grid[cell]; idx != -1; idx = m_particles[idx].nextInGrid )
+        for( uint16_t idx = m_grid[cell]; idx != INVALID_INDEX; idx = m_particles[idx].nextInGrid )
         {
             Particle& p2 = m_particles[idx];
             if( !p2.isTail() )
@@ -150,16 +148,16 @@ int WormsApp::getNearestTail(Particle const& p, float * pDistSq)
 bool WormsApp::updateHeads(float deltaTime)
 {
     // update pass1 - worm heads seek towards nearest tails, and possibly attach
-    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
+    for( uint16_t i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
         if( !p.isHead() )
             continue;
 
         float distSq = 0.0f;
-        int targetIdx = getNearestTail(p, &distSq);
+        uint16_t targetIdx = getNearestTail(p, &distSq);
 
-        if( targetIdx == -1 ) // couldnt find target, must be the last worm!
+        if( targetIdx == INVALID_INDEX ) // couldnt find target, must be the last worm!
             return true;
 
         // if within range, just connect
@@ -169,15 +167,11 @@ bool WormsApp::updateHeads(float deltaTime)
             p.nextSegment = targetIdx;
             p2.prevSegment = i;
             p.vel.x = p.vel.y = 0.0f;
-            for( int seg = i; seg != -1; seg = m_particles[seg].prevSegment ) // fixup wormIds
+            for( int seg = i; seg != INVALID_INDEX; seg = m_particles[seg].prevSegment ) // fixup wormIds
                 m_particles[seg].wormId = p2.wormId;
 
-            // clear flag of the tail we're chomping
-            uint32_t flagIdx = targetIdx / 32;
-            uint32_t flagOffset = targetIdx % 32;
-            m_tailFlags[flagIdx] &= ~(1UL<<flagOffset);
-
-            gridRemove(targetIdx, getGridCell(p2.pos));  // stop tracking the former tail
+            // stop tracking the former tail
+            gridRemove(targetIdx, getGridCell(p2.pos));
         }
         else
         {
@@ -224,15 +218,15 @@ bool WormsApp::updateHeads(float deltaTime)
 void WormsApp::updateTails(float deltaTime)
 {
     // update pass2 - worm segments chase the position of their next attached segment (going from tail -> head)
-    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
+    for( uint16_t i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
-        if( p.isTail() && p.nextSegment != -1 ) // tail of a worm (of len > 1)
+        if( p.isTail() && p.nextSegment != INVALID_INDEX ) // tail of a worm (of len > 1)
         {
             Vector2 oldPos = p.pos;
 
             // chase next segment's position
-            for( int segCur = i, segNext = p.nextSegment; segNext != -1; segCur = segNext, segNext = m_particles[segNext].nextSegment )
+            for( int segCur = i, segNext = p.nextSegment; segNext != INVALID_INDEX; segCur = segNext, segNext = m_particles[segNext].nextSegment )
             {
                 Particle& pCur  = m_particles[segCur];
                 Particle& pNext = m_particles[segNext];
@@ -249,10 +243,6 @@ void WormsApp::updateTails(float deltaTime)
                     SmoothSpringCD(pCur.pos.x, pNext.pos.x, pCur.vel.x, deltaTime, smoothTime);
                     SmoothSpringCD(pCur.pos.y, pNext.pos.y, pCur.vel.y, deltaTime, smoothTime);
                     pCur.pos += pCur.vel * deltaTime;
-
-                    // clamp vel
-                    //pCur.vel.x = clampf(pCur.vel.x, -kMaxVel, kMaxVel);
-                    //pCur.vel.y = clampf(pCur.vel.y, -kMaxVel, kMaxVel);
                 }
             }
 
@@ -294,7 +284,7 @@ void WormsApp::updateExploding(float deltaTime)
 
 //------------------------------------------------------------------------------
 
-void WormsApp::gridInsert(int idx)
+void WormsApp::gridInsert(uint16_t idx)
 {
     Particle& p = m_particles[idx];
     int cell = getGridCell(p.pos);
@@ -304,7 +294,7 @@ void WormsApp::gridInsert(int idx)
 
 //------------------------------------------------------------------------------
 
-void WormsApp::gridRemove(int idx, int cell)
+void WormsApp::gridRemove(uint16_t idx, int cell)
 {
     Particle& p = m_particles[idx];
 
@@ -315,14 +305,14 @@ void WormsApp::gridRemove(int idx, int cell)
         return;
     }
 
-    for( int i = m_grid[cell]; i != -1; )
+    for( int i = m_grid[cell]; i != INVALID_INDEX; )
     {
         Particle& gridP = m_particles[i];
         i = gridP.nextInGrid; // increment
         if( i == idx )
         {
             gridP.nextInGrid = p.nextInGrid;
-            p.nextInGrid = -1;
+            p.nextInGrid = INVALID_INDEX;
             return;
         }
     }
@@ -332,7 +322,7 @@ void WormsApp::gridRemove(int idx, int cell)
 
 //------------------------------------------------------------------------------
 
-void WormsApp::gridMove(int idx, const Vector2& oldPos)
+void WormsApp::gridMove(uint16_t idx, const Vector2& oldPos)
 {
     Particle& p = m_particles[idx];
     int curCell = getGridCell(oldPos);

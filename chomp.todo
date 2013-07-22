@@ -91,6 +91,8 @@ optimization notes:
   - add direct access to all worm tails, retest
   - add grid partitioning, retest
 
+ ☐ change tails update to use grid too
+
 more thoughts:
 scaling up to 64k gives an even split between the two update passes - this seems to be around the threshold my cache starts being exhausted
 maybe try condensing things down, to be more compact?

@@ -2,11 +2,12 @@
 #include <math.h>
 #include <assert.h>
 #include <intrin.h>
+#include <stdint.h>
 
-#define ASSERT(cond)  { if( !(cond) ) { __debugbreak(); assert(cond); } }
+#define ASSERT(cond)          { if( !(cond) ) { __debugbreak(); assert(cond); } }
+#define STATIC_ASSERT(exp)    typedef char __compile_time_assert[(exp) ? 1 : -1]
 
 //------------------------------------------------------------------------------
-typedef unsigned int uint32_t;
 
 class Vector2 {
 public:

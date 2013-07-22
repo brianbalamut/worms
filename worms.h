@@ -3,11 +3,12 @@
 
 //------------------------------------------------------------------------------
 
-const int   SCREEN_WIDTH      = 1200;
-const int   SCREEN_HEIGHT     = 800;
-const int   SCREEN_FPS        = 60;
-const float POINT_SIZE        = 2;
-const int   MAX_NUM_PARTICLES = 1024*32;
+const int      SCREEN_WIDTH      = 1200;
+const int      SCREEN_HEIGHT     = 800;
+const int      SCREEN_FPS        = 60;
+const float    POINT_SIZE        = 2;
+const int      MAX_NUM_PARTICLES = (1024*42);
+const uint16_t INVALID_INDEX     = 0xFFFF;
 
 //------------------------------------------------------------------------------
 
@@ -22,15 +23,18 @@ struct Particle
 {
     Vector2 pos;
     Vector2 vel;
-    int nextSegment;  // these can all be 16bit, assuming 64k max particles
-    int prevSegment;
-    int wormId;
-    int nextInGrid;
+    uint16_t nextSegment;
+    uint16_t prevSegment;
+    uint16_t wormId;
+    uint16_t nextInGrid;
 
-    inline bool isTail() const { return prevSegment == -1; }  // can be both head and tail (all particles start that way)
-    inline bool isHead() const { return nextSegment == -1; }
+    inline bool isTail() const { return prevSegment == INVALID_INDEX; }  // can be both head and tail (all particles start that way)
+    inline bool isHead() const { return nextSegment == INVALID_INDEX; }
 };
 
+STATIC_ASSERT( sizeof(Particle) == 24 );
+
+//------------------------------------------------------------------------------
 
 class WormsApp
 {
@@ -41,13 +45,12 @@ class WormsApp
         kUS_Exploding,
     };
 
-    Particle    m_particles[MAX_NUM_PARTICLES];
-    uint32_t    m_tailFlags[MAX_NUM_PARTICLES / 32];
     static const int GRID_SIZE = 4;
     static const int GRID_COUNT = GRID_SIZE*GRID_SIZE;
-    int         m_grid[GRID_COUNT];
-    UpdateState m_state;
+    Particle    m_particles[MAX_NUM_PARTICLES];
+    uint16_t    m_grid[GRID_COUNT];
     float       m_stateTime;
+    UpdateState m_state;
 
 public:
     WormsApp();
@@ -59,16 +62,16 @@ public:
 private:
     void        setState(UpdateState state) { m_state = state; m_stateTime = 0.0f; }
     void        reset(bool randPos, bool randVel);
-    int         getNearestTail(Particle const& p, float * pDistSq = 0);
+    uint16_t    getNearestTail(Particle const& p, float * pDistSq = 0);
     bool        updateHeads(float deltaTime);  // returns true when on last worm
     void        updateTails(float deltaTime);
     void        updateExploding(float deltaTime);
     void        screenCollide(Particle& p);
 
-    void        gridInsert(int idx);
-    void        gridRemove(int idx, int cell);
-    void        gridMove(int idx, const Vector2& oldPos);
+    void        gridInsert(uint16_t idx);
+    void        gridRemove(uint16_t idx, int cell);
+    void        gridMove(uint16_t idx, const Vector2& oldPos);
     int         getGridCell(Vector2 const& pos);
 };
 
-//static_assert( sizeof(WormsApp) <= 1024*1024 );
+STATIC_ASSERT( sizeof(WormsApp) <= 1024*1024 );
