@@ -21,9 +21,17 @@ WormsApp::WormsApp()
 
 void WormsApp::reset(bool randPos, bool randVel)
 {
+    // rebuild grid
+    for( int i=0; i < GRID_SIZE*GRID_SIZE; ++i )
+        m_grid[i] = -1;
+
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
+        p.nextInGrid  = -1;
+        p.nextSegment = -1;
+        p.prevSegment = -1;
+        p.wormId = i;
 
         if( randPos )
         {
@@ -42,9 +50,7 @@ void WormsApp::reset(bool randPos, bool randVel)
             p.vel.y = 0.0f;
         }
 
-        p.nextSegment = -1;
-        p.prevSegment = -1;
-        p.wormId = i;
+        gridInsert(i);
     }
     memset(m_tailFlags, 0xFF, sizeof(m_tailFlags));
 }
@@ -85,33 +91,23 @@ int WormsApp::getNearestTail(Particle const& p, float * pDistSq)
     int nearestIdx = -1;
     float nearestDistSq = 1e14f;
 
-    for( int t=0; t < MAX_NUM_PARTICLES / 32; ++t )
+    int cell = getGridCell(p.pos);
+    for( int idx = m_grid[cell]; idx != -1; idx = m_particles[idx].nextInGrid )
     {
-        uint32_t flags32 = m_tailFlags[t];
-        if( flags32 == 0 )  // fast skip empty blocks of 32 bit flags
+        Particle& p2 = m_particles[idx];
+        if( p2.prevSegment != -1 )  // skip non tails
             continue;
-        for( int t2=0; t2 < 32; ++t2 )
+        if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
+            continue;
+
+        float distSq = p.pos.DistSq(p2.pos);
+        if( distSq < nearestDistSq )
         {
-            if( (flags32 & (1UL<<t2)) == 0 )
-                continue;
+            nearestIdx = idx;
+            nearestDistSq = distSq;
 
-            int idx = t*32 + t2;
-            //assert(idx < MAX_NUM_PARTICLES);
-            Particle& p2 = m_particles[idx];
-            //assert(p2.prevSegment == -1);
-
-            if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
-                continue;
-
-            float distSq = p.pos.DistSq(p2.pos);
-            if( distSq < nearestDistSq )
-            {
-                nearestIdx = idx;
-                nearestDistSq = distSq;
-
-                if( distSq <= kSnapThresholdSq )
-                    break;
-            }
+            if( distSq <= kSnapThresholdSq )
+                break;
         }
     }
 
@@ -173,6 +169,8 @@ bool WormsApp::updateHeads(float deltaTime)
                 accel *= kAccelRateTurning * signToTarget;
             }
 
+            Vector2 oldPos = p.pos;
+
             // symplectic integration
             p.vel += accel * deltaTime;
             p.pos += p.vel * deltaTime;
@@ -182,16 +180,17 @@ bool WormsApp::updateHeads(float deltaTime)
             p.vel.y = clampf(p.vel.y, -kMaxVel, kMaxVel);
 
             // clamp pos, reflect vel on collide
-            if( p.pos.x < 0.0f || p.pos.x > (float)SCREEN_WIDTH )
+            if( p.pos.x < 1.0f || p.pos.x >= (float)SCREEN_WIDTH )
             {
-                p.pos.x = clampf(p.pos.x, 0.0f, (float)SCREEN_WIDTH);
+                p.pos.x = clampf(p.pos.x, 1.0f, (float)SCREEN_WIDTH-1.0f);
                 p.vel.x *= -1.0f;
             }
-            if( p.pos.y < 0.0f || p.pos.y > (float)SCREEN_HEIGHT )
+            if( p.pos.y < 1.0f || p.pos.y >= (float)SCREEN_HEIGHT )
             {
-                p.pos.y = clampf(p.pos.y, 0.0f, (float)SCREEN_HEIGHT);
+                p.pos.y = clampf(p.pos.y, 1.0f, (float)SCREEN_HEIGHT-1.0f);
                 p.vel.y *= -1.0f;
             }
+            gridMove(i, oldPos);
         }
     }
 
@@ -213,6 +212,7 @@ void WormsApp::updateTails(float deltaTime)
             {
                 Particle& pCur  = m_particles[segCur];
                 Particle& pNext = m_particles[segNext];
+                Vector2 oldPos = pCur.pos;
 
                 float dist = pCur.pos.DistSq(pNext.pos);
                 if( dist < squared(3.5f) )
@@ -231,9 +231,73 @@ void WormsApp::updateTails(float deltaTime)
                     //pCur.vel.x = clampf(pCur.vel.x, -kMaxVel, kMaxVel);
                     //pCur.vel.y = clampf(pCur.vel.y, -kMaxVel, kMaxVel);
                 }
+
+                gridMove(segCur, oldPos);
             }
         }
     }
+}
+
+//------------------------------------------------------------------------------
+
+void WormsApp::gridInsert(int idx)
+{
+    Particle& p = m_particles[idx];
+    int cell = getGridCell(p.pos);
+    p.nextInGrid = m_grid[cell];
+    m_grid[cell] = idx;
+}
+
+//------------------------------------------------------------------------------
+
+void WormsApp::gridRemove(int idx, int cell)
+{
+    Particle& p = m_particles[idx];
+
+    // handle special case: head of list
+    if( m_grid[cell] == idx )
+    {
+        m_grid[cell] = p.nextInGrid;
+        return;
+    }
+
+    for( int i = m_grid[cell]; i != -1; )
+    {
+        Particle& gridP = m_particles[i];
+        i = gridP.nextInGrid; // increment
+        if( i == idx )
+        {
+            gridP.nextInGrid = p.nextInGrid;
+            p.nextInGrid = -1;
+            return;
+        }
+    }
+
+    assert(false); // shouldn't reach here!
+}
+
+//------------------------------------------------------------------------------
+
+void WormsApp::gridMove(int idx, const Vector2& oldPos)
+{
+    Particle& p = m_particles[idx];
+    int curCell = getGridCell(oldPos);
+    int newCell = getGridCell(p.pos);
+    if( newCell != curCell )
+    {
+        gridRemove(idx, curCell);
+        gridInsert(idx);
+    }
+}
+
+//------------------------------------------------------------------------------
+
+int WormsApp::getGridCell(Vector2 const& pos)
+{
+    uint32_t x = static_cast<uint32_t>(pos.x) / (SCREEN_WIDTH  / GRID_SIZE);
+    uint32_t y = static_cast<uint32_t>(pos.y) / (SCREEN_HEIGHT / GRID_SIZE);
+    assert( x < GRID_SIZE && y < GRID_SIZE );
+    return x*GRID_SIZE + y;
 }
 
 //------------------------------------------------------------------------------

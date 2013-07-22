@@ -23,9 +23,10 @@ struct Particle
 {
     Vector2 pos;
     Vector2 vel;
-    int nextSegment;
+    int nextSegment;  // these can all be 16bit, assuming 64k max particles
     int prevSegment;
     int wormId;
+    int nextInGrid;
 };
 
 
@@ -40,6 +41,8 @@ class WormsApp
 
     Particle    m_particles[MAX_NUM_PARTICLES];
     uint32_t    m_tailFlags[MAX_NUM_PARTICLES / 32];
+    static const int GRID_SIZE = 4;
+    int         m_grid[GRID_SIZE*GRID_SIZE];
     UpdateState m_state;
     float       m_stateTime;
 
@@ -56,6 +59,11 @@ private:
     void        updateTails(float deltaTime);
     void        updateExploding(float deltaTime);
     int         getNearestTail(Particle const& p, float * pDistSq = 0);
+
+    void        gridInsert(int idx);
+    void        gridRemove(int idx, int cell);
+    void        gridMove(int idx, const Vector2& oldPos);
+    int         getGridCell(Vector2 const& pos);
 };
 
 //static_assert( sizeof(WormsApp) <= 1024*1024 );
