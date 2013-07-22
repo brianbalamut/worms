@@ -58,21 +58,6 @@ inline float sign(float f)
     return f < 0.0f ? -1.0f : 1.0f;
 }
 
-inline float squared(float f)
-{
-    return f*f;
-}
-
-inline float lerp(float t, float a, float b)
-{
-    return a * (1.0f - t) + b * t;
-}
-
-inline Vector2 lerp2d(float t, Vector2 a, Vector2 b)
-{
-    return a * (1.0f - t) + b * t;
-}
-
 //-- Critically damped spring smoothing -- from Game Programming Gems 4 (1.10)
 inline float SmoothSpringCD(float from, float to, float &vel, float const deltaTime, float smoothTime)
 {

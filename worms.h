@@ -95,4 +95,4 @@ private:
     int         getGridCell(Vector2 const& pos);
 };
 
-STATIC_ASSERT( sizeof(WormsApp) <= 1024*1024 );
+STATIC_ASSERT( sizeof(WormsApp) <= 1024*1024 );  // 1MB limit

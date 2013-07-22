@@ -2,12 +2,12 @@
 #include "freeglut.h"
 #include <algorithm>
 
-const float kAccelRateTurning = 200.0f;
-const float kAccelRateDirect  = 400.0f;
-const float kMaxVel           = 225.0f;
+const float kAccelRateTurning = 220.0f;
+const float kAccelRateDirect  = 440.0f;
+const float kMaxVel           = 175.0f;
 const float kExplosionTime    = 2.3f;
-const float kExplosionDamp    = 0.98f;
-const float kSnapThresholdSq  = 6.0f*6.0f;
+const float kExplosionDamp    = 0.99f;
+const float kSnapThresholdSq  = 7.0f*7.0f;
 static bool s_fpsCapped = false;
 
 //------------------------------------------------------------------------------
@@ -40,26 +40,6 @@ bool WormsApp::GridOrderPred::operator() (uint16_t a, uint16_t b) const
     GridCell2d cellB = GridCell2d::from1D(b);
     return searchCell.dist(cellA) < searchCell.dist(cellB);
 }
-
-////------------------------------------------------------------------------------
-//
-//void WormsApp::setSearchOrder(uint16_t * pSearchOrder, GridCell2d cell2d, uint16_t& seachOrderIdx)
-//{
-//    // stop when orderidx == max
-//    // skip if alrdy contained
-//    // set current
-//
-//    // search neighbors
-//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 1, cell2d.y + 1), seachOrderIdx);
-//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 1, cell2d.y + 0), seachOrderIdx);
-//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 1, cell2d.y - 1), seachOrderIdx);
-//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 0, cell2d.y + 1), seachOrderIdx);
-//  //setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 0, cell2d.y + 0), seachOrderIdx);
-//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 0, cell2d.y - 1), seachOrderIdx);
-//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x - 1, cell2d.y + 1), seachOrderIdx);
-//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x - 1, cell2d.y + 0), seachOrderIdx);
-//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x - 1, cell2d.y - 1), seachOrderIdx);
-//}
 
 //------------------------------------------------------------------------------
 
@@ -282,19 +262,10 @@ void WormsApp::updateTails(float deltaTime)
                     Particle& pCur  = m_particles[segCur];
                     Particle& pNext = m_particles[segNext];
 
-                    //float dist = pCur.pos.DistSq(pNext.pos);
-                    //if( dist < squared(3.5f) )
-                    //{
-                    //    pCur.pos = pNext.pos;
-                    //    pCur.vel = pNext.vel;
-                    //}
-                    //else
-                    {
-                        float smoothTime = 0.03f;
-                        SmoothSpringCD(pCur.pos.x, pNext.pos.x, pCur.vel.x, deltaTime, smoothTime);
-                        SmoothSpringCD(pCur.pos.y, pNext.pos.y, pCur.vel.y, deltaTime, smoothTime);
-                        pCur.pos += pCur.vel * deltaTime;
-                    }
+                    float smoothTime = 0.03f;
+                    SmoothSpringCD(pCur.pos.x, pNext.pos.x, pCur.vel.x, deltaTime, smoothTime);
+                    SmoothSpringCD(pCur.pos.y, pNext.pos.y, pCur.vel.y, deltaTime, smoothTime);
+                    pCur.pos += pCur.vel * deltaTime;
                 }
 
                 gridMove(i, oldPos); // only move tails, not mid segments
