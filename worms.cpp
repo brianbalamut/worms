@@ -3,9 +3,9 @@
 
 const float kAccelRateTurning = 250.0f;
 const float kAccelRateDirect  = 500.0f;
-const float kMaxVel           = 175.0f;
-const float kExplosionTime    = 1.5f;
-const float kExplosionDamp    = 0.995f;
+const float kMaxVel           = 225.0f;
+const float kExplosionTime    = 2.3f;
+const float kExplosionDamp    = 0.98f;
 const float kSnapThresholdSq  = 6.0f*6.0f;
 
 //------------------------------------------------------------------------------
@@ -44,7 +44,9 @@ void WormsApp::reset(bool randPos, bool randVel)
         p.nextSegment = -1;
         p.prevSegment = -1;
         p.wormId = i;
+        m_tails[i] = i;
     }
+    m_numTails = MAX_NUM_PARTICLES;
 }
 
 //------------------------------------------------------------------------------
@@ -78,52 +80,65 @@ void WormsApp::update(float deltaTime)
 
 //------------------------------------------------------------------------------
 
+int WormsApp::getNearestTail(Particle const& p, float * pDistSq)
+{
+    int nearestIdx = -1;
+    float nearestDistSq = 1e14f;
+
+    for( int i2=0; i2 < m_numTails; ++i2 )  // n^2 lame-o search
+    {
+        Particle& p2 = m_particles[m_tails[i2]];
+
+        //assert(p2.prevSegment != -1);
+        if( p2.prevSegment != -1 )
+            continue;
+        if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
+            continue;
+
+        float distSq = p.pos.DistSq(p2.pos);
+        if( distSq < nearestDistSq )
+        {
+            nearestIdx = i2;
+            nearestDistSq = distSq;
+
+            if( distSq <= kSnapThresholdSq )
+                break;
+        }
+    }
+
+    if( pDistSq != NULL )
+        *pDistSq = nearestDistSq;
+    return nearestIdx;
+}
+
+//------------------------------------------------------------------------------
+
 bool WormsApp::updateHeads(float deltaTime)
 {
     // update pass1 - worm heads seek towards nearest tails, and possibly attach
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
-        int targetIdx = -1;
-
         if( p.nextSegment != -1 ) // head of a worm
             continue;
-        // if head, find nearest tail as target
-        float nearestDistSq = 1e14f;
-        for( int i2=0; i2 < MAX_NUM_PARTICLES; ++i2 )  // n^2 lame-o search
-        {
-            Particle& p2 = m_particles[i2];
-            if( p2.prevSegment != -1 )  // only target tails
-                continue;
-            if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
-                continue;
 
-            float distSq = p.pos.DistSq(p2.pos);
-            if( distSq < nearestDistSq )
-            {
-                // if within range, just connect
-                if( distSq <= kSnapThresholdSq )
-                {
-                    targetIdx = i2;
-                    p.nextSegment = i2;
-                    p2.prevSegment = i;
-                    p.vel.x = p.vel.y = 0.0f;
-                    for( int seg = i; seg != -1; seg = m_particles[seg].prevSegment ) // fixup wormIds
-                        m_particles[seg].wormId = p2.wormId;
-                    break;
-                }
-                else
-                {
-                    nearestDistSq = distSq;
-                    targetIdx = i2;
-                }
-            }
-        }
+        float distSq = 0.0f;
+        int targetIdx = getNearestTail(p, &distSq);
 
         if( targetIdx == -1 ) // couldnt find target, must be the last worm!
             return true;
 
-        if( p.nextSegment == -1 ) // still unattached
+        // if within range, just connect
+        if( distSq <= kSnapThresholdSq )
+        {
+            Particle& p2 = m_particles[targetIdx];
+            p.nextSegment = targetIdx;
+            p2.prevSegment = i;
+            p.vel.x = p.vel.y = 0.0f;
+            for( int seg = i; seg != -1; seg = m_particles[seg].prevSegment ) // fixup wormIds
+                m_particles[seg].wormId = p2.wormId;
+        }
+        else
         {
             // seek towards target
             Vector2 accel;

@@ -3,12 +3,12 @@
 
 //------------------------------------------------------------------------------
 
-const int   SCREEN_WIDTH      = 800;
-const int   SCREEN_HEIGHT     = 600;
+const int   SCREEN_WIDTH      = 1200;
+const int   SCREEN_HEIGHT     = 800;
 const int   SCREEN_FPS        = 60;
 const int   TIMER_MS          = 16;
 const float POINT_SIZE        = 1;
-const int   MAX_NUM_PARTICLES = 1024*4;
+const int   MAX_NUM_PARTICLES = 1024*16;
 
 //------------------------------------------------------------------------------
 
@@ -39,6 +39,8 @@ class WormsApp
     };
 
     Particle    m_particles[MAX_NUM_PARTICLES];
+    int         m_tails[MAX_NUM_PARTICLES];
+    int         m_numTails;
     UpdateState m_state;
     float       m_stateTime;
 
@@ -54,6 +56,7 @@ private:
     bool        updateHeads(float deltaTime);  // returns true when on last worm
     void        updateTails(float deltaTime);
     void        updateExploding(float deltaTime);
+    int         getNearestTail(Particle const& p, float * pDistSq = 0);
 };
 
 //static_assert( sizeof(WormsApp) <= 1024*1024 );

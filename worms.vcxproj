@@ -36,6 +36,9 @@
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4505</DisableSpecificWarnings>
     </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

@@ -18,10 +18,10 @@ chomp test todo:
    ✔ implement screen edge collision @done (13-07-21 13:01)
    ✔ tweak/change things to make it converge to one worm easier @done (13-07-21 13:35)
    ✔ implement explosion and looping game flow (eat, explode, scatter, repeat) @done (13-07-21 14:03)
- ☐ polish
+ ✔ polish @done (13-07-21 16:28)
    ✔ change the trail to update by motion, not just swap pos up the chain (doesnt look/feel cool as is) @done (13-07-21 16:04)
-   ☐ implement better explode (make it last a couple seconds, tick integration)
-   ☐ do another pass of tuning or code tweaks to make the seek a little better
+   ✔ implement better explode (make it last a couple seconds, tick integration) @done (13-07-21 16:27)
+   ✔ do another pass of tuning or code tweaks to make the seek a little better @done (13-07-21 16:28)
  ☐ examine code and think about implementation; start gathering basic profiling data
    ☐ check scalability by bumping up # particles til it breaks
  ☐ think of ways to improve, try out different optimizations starting from high level (data access and algorithms)
@@ -78,3 +78,13 @@ maybe lead the target based on their vel (once each particle is using their velo
 try springing the segments together once attached?
 
 maybe add hotkeys for toggling vsync (it's fun watching it go really fast, but confusing), possibly other settings
+- explode should always be vsync on so its timing is right (and it damps wrong / is weird without fixed timestep)
+
+optimization notes:
+ ✔ setup a repeatable benchmark @done (13-07-21 16:55)
+  - run for first x frames, measure time per frame
+
+ ☐ speed up the search
+  - break out the code into an isolated function, w same behavior
+  - add direct access to all worm tails, retest
+  - add grid partitioning, retest

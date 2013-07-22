@@ -36,6 +36,11 @@ void gameloop(int val)
     render();
 
     glutTimerFunc(TIMER_MS, gameloop, val);
+
+    // perf testing, run for X frames
+    static int framesLeft = 30;
+    if( --framesLeft <= 0 )
+         glutLeaveMainLoop();
 }
 
 void render()
