@@ -6,9 +6,8 @@
 const int   SCREEN_WIDTH      = 1200;
 const int   SCREEN_HEIGHT     = 800;
 const int   SCREEN_FPS        = 60;
-const int   TIMER_MS          = 16;
-const float POINT_SIZE        = 1;
-const int   MAX_NUM_PARTICLES = 1024*16;
+const float POINT_SIZE        = 2;
+const int   MAX_NUM_PARTICLES = 1024*32;
 
 //------------------------------------------------------------------------------
 
@@ -27,6 +26,9 @@ struct Particle
     int prevSegment;
     int wormId;
     int nextInGrid;
+
+    inline bool isTail() const { return prevSegment == -1; }  // can be both head and tail (all particles start that way)
+    inline bool isHead() const { return nextSegment == -1; }
 };
 
 
@@ -42,7 +44,8 @@ class WormsApp
     Particle    m_particles[MAX_NUM_PARTICLES];
     uint32_t    m_tailFlags[MAX_NUM_PARTICLES / 32];
     static const int GRID_SIZE = 4;
-    int         m_grid[GRID_SIZE*GRID_SIZE];
+    static const int GRID_COUNT = GRID_SIZE*GRID_SIZE;
+    int         m_grid[GRID_COUNT];
     UpdateState m_state;
     float       m_stateTime;
 
@@ -51,14 +54,16 @@ public:
 
     void        update(float deltaTime);
     void        render();
+    int         getTimerMs() const;
 
 private:
     void        setState(UpdateState state) { m_state = state; m_stateTime = 0.0f; }
     void        reset(bool randPos, bool randVel);
+    int         getNearestTail(Particle const& p, float * pDistSq = 0);
     bool        updateHeads(float deltaTime);  // returns true when on last worm
     void        updateTails(float deltaTime);
     void        updateExploding(float deltaTime);
-    int         getNearestTail(Particle const& p, float * pDistSq = 0);
+    void        screenCollide(Particle& p);
 
     void        gridInsert(int idx);
     void        gridRemove(int idx, int cell);

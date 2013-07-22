@@ -1,5 +1,9 @@
 #pragma once
 #include <math.h>
+#include <assert.h>
+#include <intrin.h>
+
+#define ASSERT(cond)  { if( !(cond) ) { __debugbreak(); assert(cond); } }
 
 //------------------------------------------------------------------------------
 typedef unsigned int uint32_t;

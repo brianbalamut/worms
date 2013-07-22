@@ -22,9 +22,11 @@ chomp test todo:
    ✔ change the trail to update by motion, not just swap pos up the chain (doesnt look/feel cool as is) @done (13-07-21 16:04)
    ✔ implement better explode (make it last a couple seconds, tick integration) @done (13-07-21 16:27)
    ✔ do another pass of tuning or code tweaks to make the seek a little better @done (13-07-21 16:28)
- ☐ examine code and think about implementation; start gathering basic profiling data
-   ☐ check scalability by bumping up # particles til it breaks
+ ✔ examine code and think about implementation; start gathering basic profiling data @done (13-07-21 20:30)
+   ✔ check scalability by bumping up # particles til it breaks @done (13-07-21 20:30)
  ☐ think of ways to improve, try out different optimizations starting from high level (data access and algorithms)
+   ✔ first pass optimizations done @done (13-07-21 20:30)
+   ☐ fix grid search outside the first cell
 
 
 thoughts on architecture/implementation routes:
@@ -84,7 +86,11 @@ optimization notes:
  ✔ setup a repeatable benchmark @done (13-07-21 16:55)
   - run for first x frames, measure time per frame
 
- ☐ speed up the search
+ ✔ speed up the search @done (13-07-21 20:25)
   - break out the code into an isolated function, w same behavior
   - add direct access to all worm tails, retest
   - add grid partitioning, retest
+
+more thoughts:
+scaling up to 64k gives an even split between the two update passes - this seems to be around the threshold my cache starts being exhausted
+maybe try condensing things down, to be more compact?

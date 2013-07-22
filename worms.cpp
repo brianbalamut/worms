@@ -1,13 +1,12 @@
 #include "worms.h"
 #include "freeglut.h"
-#include <assert.h>
 
 const float kAccelRateTurning = 250.0f;
 const float kAccelRateDirect  = 500.0f;
 const float kMaxVel           = 225.0f;
 const float kExplosionTime    = 2.3f;
 const float kExplosionDamp    = 0.98f;
-const float kSnapThresholdSq  = 6.0f*6.0f;
+const float kSnapThresholdSq  = 4.0f*4.0f;
 
 //------------------------------------------------------------------------------
 
@@ -21,10 +20,6 @@ WormsApp::WormsApp()
 
 void WormsApp::reset(bool randPos, bool randVel)
 {
-    // rebuild grid
-    for( int i=0; i < GRID_SIZE*GRID_SIZE; ++i )
-        m_grid[i] = -1;
-
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
@@ -49,9 +44,14 @@ void WormsApp::reset(bool randPos, bool randVel)
             p.vel.x = 0.0f;
             p.vel.y = 0.0f;
         }
-
-        gridInsert(i);
     }
+
+    // rebuild grid
+    for( int i=0; i < GRID_COUNT; ++i )
+        m_grid[i] = -1;
+    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
+        gridInsert(i);
+
     memset(m_tailFlags, 0xFF, sizeof(m_tailFlags));
 }
 
@@ -86,29 +86,58 @@ void WormsApp::update(float deltaTime)
 
 //------------------------------------------------------------------------------
 
+void WormsApp::render()
+{
+    glBegin(GL_POINTS);
+    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
+    {
+        glVertex2f(m_particles[i].pos.x, m_particles[i].pos.y);
+    }
+    glEnd();
+}
+
+//------------------------------------------------------------------------------
+
+int WormsApp::getTimerMs() const
+{
+    if( m_state == kUS_Exploding )
+        return 1000/SCREEN_FPS;
+    static bool s_fpsCapped = false;
+    return s_fpsCapped ? 1000/SCREEN_FPS : 0;
+}
+
+//------------------------------------------------------------------------------
+
 int WormsApp::getNearestTail(Particle const& p, float * pDistSq)
 {
     int nearestIdx = -1;
     float nearestDistSq = 1e14f;
-
     int cell = getGridCell(p.pos);
-    for( int idx = m_grid[cell]; idx != -1; idx = m_particles[idx].nextInGrid )
+    int startCell = cell;
+
+    while( nearestIdx == -1 )
     {
-        Particle& p2 = m_particles[idx];
-        if( p2.prevSegment != -1 )  // skip non tails
-            continue;
-        if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
-            continue;
-
-        float distSq = p.pos.DistSq(p2.pos);
-        if( distSq < nearestDistSq )
+        for( int idx = m_grid[cell]; idx != -1; idx = m_particles[idx].nextInGrid )
         {
-            nearestIdx = idx;
-            nearestDistSq = distSq;
+            Particle& p2 = m_particles[idx];
+            if( !p2.isTail() )
+                continue;
+            if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
+                continue;
 
-            if( distSq <= kSnapThresholdSq )
-                break;
+            float distSq = p.pos.DistSq(p2.pos);
+            if( distSq < nearestDistSq )
+            {
+                nearestIdx = idx;
+                nearestDistSq = distSq;
+
+                if( distSq <= kSnapThresholdSq )
+                    break;
+            }
         }
+        cell = (cell+1) % GRID_COUNT;  // just trying the other grids in memory order... so only closest for the in-grid ones! finding the right grid search order seems hard to think about for now
+        if( startCell == cell )
+            break; // we wrapped
     }
 
     if( pDistSq != NULL )
@@ -124,7 +153,7 @@ bool WormsApp::updateHeads(float deltaTime)
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
-        if( p.nextSegment != -1 ) // head of a worm
+        if( !p.isHead() )
             continue;
 
         float distSq = 0.0f;
@@ -147,6 +176,8 @@ bool WormsApp::updateHeads(float deltaTime)
             uint32_t flagIdx = targetIdx / 32;
             uint32_t flagOffset = targetIdx % 32;
             m_tailFlags[flagIdx] &= ~(1UL<<flagOffset);
+
+            gridRemove(targetIdx, getGridCell(p2.pos));  // stop tracking the former tail
         }
         else
         {
@@ -178,19 +209,10 @@ bool WormsApp::updateHeads(float deltaTime)
             // clamp vel
             p.vel.x = clampf(p.vel.x, -kMaxVel, kMaxVel);
             p.vel.y = clampf(p.vel.y, -kMaxVel, kMaxVel);
+            screenCollide(p);
 
-            // clamp pos, reflect vel on collide
-            if( p.pos.x < 1.0f || p.pos.x >= (float)SCREEN_WIDTH )
-            {
-                p.pos.x = clampf(p.pos.x, 1.0f, (float)SCREEN_WIDTH-1.0f);
-                p.vel.x *= -1.0f;
-            }
-            if( p.pos.y < 1.0f || p.pos.y >= (float)SCREEN_HEIGHT )
-            {
-                p.pos.y = clampf(p.pos.y, 1.0f, (float)SCREEN_HEIGHT-1.0f);
-                p.vel.y *= -1.0f;
-            }
-            gridMove(i, oldPos);
+            if( p.isTail() )
+                gridMove(i, oldPos);
         }
     }
 
@@ -205,14 +227,15 @@ void WormsApp::updateTails(float deltaTime)
     for( int i=0; i < MAX_NUM_PARTICLES; ++i )
     {
         Particle& p = m_particles[i];
-        if( p.prevSegment == -1 && p.nextSegment != -1 ) // tail of a worm (of len > 1)
+        if( p.isTail() && p.nextSegment != -1 ) // tail of a worm (of len > 1)
         {
+            Vector2 oldPos = p.pos;
+
             // chase next segment's position
             for( int segCur = i, segNext = p.nextSegment; segNext != -1; segCur = segNext, segNext = m_particles[segNext].nextSegment )
             {
                 Particle& pCur  = m_particles[segCur];
                 Particle& pNext = m_particles[segNext];
-                Vector2 oldPos = pCur.pos;
 
                 float dist = pCur.pos.DistSq(pNext.pos);
                 if( dist < squared(3.5f) )
@@ -231,10 +254,41 @@ void WormsApp::updateTails(float deltaTime)
                     //pCur.vel.x = clampf(pCur.vel.x, -kMaxVel, kMaxVel);
                     //pCur.vel.y = clampf(pCur.vel.y, -kMaxVel, kMaxVel);
                 }
-
-                gridMove(segCur, oldPos);
             }
+
+            gridMove(i, oldPos); // only move tails, not mid segments
         }
+    }
+}
+
+//------------------------------------------------------------------------------
+
+void WormsApp::screenCollide(Particle& p)
+{
+    // clamp pos, reflect vel on collide
+    if( p.pos.x < 1.0f || p.pos.x >= (float)SCREEN_WIDTH )
+    {
+        p.pos.x = clampf(p.pos.x, 1.0f, (float)SCREEN_WIDTH-1.0f);
+        p.vel.x *= -1.0f;
+    }
+    if( p.pos.y < 1.0f || p.pos.y >= (float)SCREEN_HEIGHT )
+    {
+        p.pos.y = clampf(p.pos.y, 1.0f, (float)SCREEN_HEIGHT-1.0f);
+        p.vel.y *= -1.0f;
+    }
+}
+
+//------------------------------------------------------------------------------
+
+void WormsApp::updateExploding(float deltaTime)
+{
+    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
+    {
+        Particle& p = m_particles[i];
+        p.pos += p.vel * deltaTime;
+        p.vel *= kExplosionDamp;
+
+        screenCollide(p);
     }
 }
 
@@ -273,7 +327,7 @@ void WormsApp::gridRemove(int idx, int cell)
         }
     }
 
-    assert(false); // shouldn't reach here!
+    ASSERT(false); // shouldn't reach here!
 }
 
 //------------------------------------------------------------------------------
@@ -296,30 +350,6 @@ int WormsApp::getGridCell(Vector2 const& pos)
 {
     uint32_t x = static_cast<uint32_t>(pos.x) / (SCREEN_WIDTH  / GRID_SIZE);
     uint32_t y = static_cast<uint32_t>(pos.y) / (SCREEN_HEIGHT / GRID_SIZE);
-    assert( x < GRID_SIZE && y < GRID_SIZE );
+    ASSERT( x < GRID_SIZE && y < GRID_SIZE );
     return x*GRID_SIZE + y;
-}
-
-//------------------------------------------------------------------------------
-
-void WormsApp::updateExploding(float deltaTime)
-{
-    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
-    {
-        Particle& p = m_particles[i];
-        p.pos += p.vel * deltaTime;
-        p.vel *= kExplosionDamp;
-    }
-}
-
-//------------------------------------------------------------------------------
-
-void WormsApp::render()
-{
-    glBegin(GL_POINTS);
-    for( int i=0; i < MAX_NUM_PARTICLES; ++i )
-    {
-        glVertex2f(m_particles[i].pos.x, m_particles[i].pos.y);
-    }
-    glEnd();
 }

@@ -25,7 +25,7 @@ int main(int argc, char* args[])
 
     // kick off glut loop
     glutDisplayFunc(render);
-    glutTimerFunc(TIMER_MS, gameloop, 0);
+    glutTimerFunc(0, gameloop, 0);
     glutMainLoop();
     return 0;
 }
@@ -35,12 +35,12 @@ void gameloop(int val)
     s_app.update(1.0f/SCREEN_FPS);
     render();
 
-    glutTimerFunc(TIMER_MS, gameloop, val);
+    glutTimerFunc(s_app.getTimerMs(), gameloop, val);
 
-    // perf testing, run for X frames
-    static int framesLeft = 30;
-    if( --framesLeft <= 0 )
-         glutLeaveMainLoop();
+    //// perf testing, run for X frames
+    //static int framesLeft = 30;
+    //if( --framesLeft <= 0 )
+    //     glutLeaveMainLoop();
 }
 
 void render()
