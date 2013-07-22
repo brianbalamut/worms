@@ -24,9 +24,10 @@ chomp test todo:
    ✔ do another pass of tuning or code tweaks to make the seek a little better @done (13-07-21 16:28)
  ✔ examine code and think about implementation; start gathering basic profiling data @done (13-07-21 20:30)
    ✔ check scalability by bumping up # particles til it breaks @done (13-07-21 20:30)
- ☐ think of ways to improve, try out different optimizations starting from high level (data access and algorithms)
+ ✔ think of ways to improve, try out different optimizations starting from high level (data access and algorithms) @done (13-07-21 21:47)
    ✔ first pass optimizations done @done (13-07-21 20:30)
-   ☐ fix grid search outside the first cell
+   ✔ fix grid search outside the first cell @done (13-07-21 21:47)
+ ✘ add fps cap toggle hotkey @cancelled (13-07-21 23:20)
 
 
 thoughts on architecture/implementation routes:
@@ -91,8 +92,9 @@ optimization notes:
   - add direct access to all worm tails, retest
   - add grid partitioning, retest
 
- ☐ change tails update to use grid too
+ ✔ change tails update to use grid too @done (13-07-21 21:09)
 
 more thoughts:
-scaling up to 64k gives an even split between the two update passes - this seems to be around the threshold my cache starts being exhausted
-maybe try condensing things down, to be more compact?
+need to limit the perf hit on the first few frames
+could have particles update each other once found, though that's not always correct behavior either
+upping grid size makes things work much better!

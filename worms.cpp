@@ -1,12 +1,14 @@
 #include "worms.h"
 #include "freeglut.h"
+#include <algorithm>
 
-const float kAccelRateTurning = 250.0f;
-const float kAccelRateDirect  = 500.0f;
+const float kAccelRateTurning = 200.0f;
+const float kAccelRateDirect  = 400.0f;
 const float kMaxVel           = 225.0f;
 const float kExplosionTime    = 2.3f;
 const float kExplosionDamp    = 0.98f;
-const float kSnapThresholdSq  = 4.0f*4.0f;
+const float kSnapThresholdSq  = 6.0f*6.0f;
+static bool s_fpsCapped = false;
 
 //------------------------------------------------------------------------------
 
@@ -14,7 +16,50 @@ WormsApp::WormsApp()
 {
     reset(true, false);
     setState(kUS_Normal);
+
+    // flatten recursive grid search order logic
+    memset(m_gridSearchOrder, 0xFF, sizeof(m_gridSearchOrder));
+    for( uint16_t i = 0; i < GRID_COUNT; ++i )
+    {
+        uint8_t * pSearchOrder = m_gridSearchOrder[i];
+        for( uint16_t i2=0; i2 < GRID_COUNT; ++i2 )
+            pSearchOrder[i2] = (i2+i) % GRID_COUNT;
+    }
+
+    for( uint16_t i = 0; i < GRID_COUNT; ++i )
+    {
+        std::sort( m_gridSearchOrder[i], m_gridSearchOrder[i] + GRID_COUNT, GridOrderPred(i) );  // wish i had lamdas
+    }
 }
+
+//------------------------------------------------------------------------------
+
+bool WormsApp::GridOrderPred::operator() (uint16_t a, uint16_t b) const
+{
+    GridCell2d cellA = GridCell2d::from1D(a);
+    GridCell2d cellB = GridCell2d::from1D(b);
+    return searchCell.dist(cellA) < searchCell.dist(cellB);
+}
+
+////------------------------------------------------------------------------------
+//
+//void WormsApp::setSearchOrder(uint16_t * pSearchOrder, GridCell2d cell2d, uint16_t& seachOrderIdx)
+//{
+//    // stop when orderidx == max
+//    // skip if alrdy contained
+//    // set current
+//
+//    // search neighbors
+//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 1, cell2d.y + 1), seachOrderIdx);
+//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 1, cell2d.y + 0), seachOrderIdx);
+//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 1, cell2d.y - 1), seachOrderIdx);
+//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 0, cell2d.y + 1), seachOrderIdx);
+//  //setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 0, cell2d.y + 0), seachOrderIdx);
+//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x + 0, cell2d.y - 1), seachOrderIdx);
+//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x - 1, cell2d.y + 1), seachOrderIdx);
+//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x - 1, cell2d.y + 0), seachOrderIdx);
+//    setSearchOrder(pSearchOrder, GridCell2d(cell2d.x - 1, cell2d.y - 1), seachOrderIdx);
+//}
 
 //------------------------------------------------------------------------------
 
@@ -100,8 +145,31 @@ int WormsApp::getTimerMs() const
 {
     if( m_state == kUS_Exploding )
         return 1000/SCREEN_FPS;
-    static bool s_fpsCapped = false;
     return s_fpsCapped ? 1000/SCREEN_FPS : 0;
+}
+
+//------------------------------------------------------------------------------
+
+void WormsApp::getNearestInCell(Particle const& p, int cell, uint16_t& nearestIdx, float& nearestDistSq)
+{
+    for( uint16_t idx = m_grid[cell]; idx != INVALID_INDEX; idx = m_particles[idx].nextInGrid )
+    {
+        Particle& p2 = m_particles[idx];
+        if( !p2.isTail() )
+            continue;
+        if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
+            continue;
+
+        float distSq = p.pos.DistSq(p2.pos);
+        if( distSq < nearestDistSq )
+        {
+            nearestIdx = idx;
+            nearestDistSq = distSq;
+
+            if( distSq <= kSnapThresholdSq )
+                return;
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -110,32 +178,12 @@ uint16_t WormsApp::getNearestTail(Particle const& p, float * pDistSq)
 {
     uint16_t nearestIdx = INVALID_INDEX;
     float nearestDistSq = 1e14f;
-    int cell = getGridCell(p.pos);
-    int startCell = cell;
+    int16_t cell = (int16_t)getGridCell(p.pos);
 
-    while( nearestIdx == INVALID_INDEX )
+    for( int16_t searchOrderIdx = 0; searchOrderIdx < GRID_COUNT && nearestIdx == INVALID_INDEX; ++searchOrderIdx )
     {
-        for( uint16_t idx = m_grid[cell]; idx != INVALID_INDEX; idx = m_particles[idx].nextInGrid )
-        {
-            Particle& p2 = m_particles[idx];
-            if( !p2.isTail() )
-                continue;
-            if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
-                continue;
-
-            float distSq = p.pos.DistSq(p2.pos);
-            if( distSq < nearestDistSq )
-            {
-                nearestIdx = idx;
-                nearestDistSq = distSq;
-
-                if( distSq <= kSnapThresholdSq )
-                    break;
-            }
-        }
-        cell = (cell+1) % GRID_COUNT;  // just trying the other grids in memory order... so only closest for the in-grid ones! finding the right grid search order seems hard to think about for now
-        if( startCell == cell )
-            break; // we wrapped
+        int16_t searchCell = m_gridSearchOrder[cell][searchOrderIdx];
+        getNearestInCell(p, searchCell, nearestIdx, nearestDistSq);
     }
 
     if( pDistSq != NULL )
@@ -218,35 +266,39 @@ bool WormsApp::updateHeads(float deltaTime)
 void WormsApp::updateTails(float deltaTime)
 {
     // update pass2 - worm segments chase the position of their next attached segment (going from tail -> head)
-    for( uint16_t i=0; i < MAX_NUM_PARTICLES; ++i )
+    for( int cell=0; cell < GRID_COUNT; ++cell )
     {
-        Particle& p = m_particles[i];
-        if( p.isTail() && p.nextSegment != INVALID_INDEX ) // tail of a worm (of len > 1)
+        for( uint16_t i = m_grid[cell]; i != INVALID_INDEX; i = m_particles[i].nextInGrid )
         {
-            Vector2 oldPos = p.pos;
-
-            // chase next segment's position
-            for( int segCur = i, segNext = p.nextSegment; segNext != INVALID_INDEX; segCur = segNext, segNext = m_particles[segNext].nextSegment )
+            Particle& p = m_particles[i];
+            ASSERT(p.isTail());
+            if( p.nextSegment != INVALID_INDEX ) // tail of a worm (of len > 1)
             {
-                Particle& pCur  = m_particles[segCur];
-                Particle& pNext = m_particles[segNext];
+                Vector2 oldPos = p.pos;
 
-                float dist = pCur.pos.DistSq(pNext.pos);
-                if( dist < squared(3.5f) )
+                // chase next segment's position
+                for( int segCur = i, segNext = p.nextSegment; segNext != INVALID_INDEX; segCur = segNext, segNext = m_particles[segNext].nextSegment )
                 {
-                    pCur.pos = pNext.pos;
-                    pCur.vel = pNext.vel;
+                    Particle& pCur  = m_particles[segCur];
+                    Particle& pNext = m_particles[segNext];
+
+                    //float dist = pCur.pos.DistSq(pNext.pos);
+                    //if( dist < squared(3.5f) )
+                    //{
+                    //    pCur.pos = pNext.pos;
+                    //    pCur.vel = pNext.vel;
+                    //}
+                    //else
+                    {
+                        float smoothTime = 0.03f;
+                        SmoothSpringCD(pCur.pos.x, pNext.pos.x, pCur.vel.x, deltaTime, smoothTime);
+                        SmoothSpringCD(pCur.pos.y, pNext.pos.y, pCur.vel.y, deltaTime, smoothTime);
+                        pCur.pos += pCur.vel * deltaTime;
+                    }
                 }
-                else
-                {
-                    float smoothTime = 0.03f;
-                    SmoothSpringCD(pCur.pos.x, pNext.pos.x, pCur.vel.x, deltaTime, smoothTime);
-                    SmoothSpringCD(pCur.pos.y, pNext.pos.y, pCur.vel.y, deltaTime, smoothTime);
-                    pCur.pos += pCur.vel * deltaTime;
-                }
+
+                gridMove(i, oldPos); // only move tails, not mid segments
             }
-
-            gridMove(i, oldPos); // only move tails, not mid segments
         }
     }
 }

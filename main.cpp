@@ -38,9 +38,9 @@ void gameloop(int val)
     glutTimerFunc(s_app.getTimerMs(), gameloop, val);
 
     //// perf testing, run for X frames
-    //static int framesLeft = 30;
+    //static int framesLeft = 3;
     //if( --framesLeft <= 0 )
-    //     glutLeaveMainLoop();
+    //    glutLeaveMainLoop();
 }
 
 void render()

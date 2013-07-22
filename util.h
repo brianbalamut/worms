@@ -4,7 +4,12 @@
 #include <intrin.h>
 #include <stdint.h>
 
-#define ASSERT(cond)          { if( !(cond) ) { __debugbreak(); assert(cond); } }
+#ifdef _DEBUG
+#define ASSERT(cond)  { if( !(cond) ) { __debugbreak(); assert(cond); } }
+#else
+#define ASSERT(cond)  ((void)0)
+#endif
+
 #define STATIC_ASSERT(exp)    typedef char __compile_time_assert[(exp) ? 1 : -1]
 
 //------------------------------------------------------------------------------
