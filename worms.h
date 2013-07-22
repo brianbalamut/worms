@@ -39,8 +39,7 @@ class WormsApp
     };
 
     Particle    m_particles[MAX_NUM_PARTICLES];
-    int         m_tails[MAX_NUM_PARTICLES];
-    int         m_numTails;
+    uint32_t    m_tailFlags[MAX_NUM_PARTICLES / 32];
     UpdateState m_state;
     float       m_stateTime;
 

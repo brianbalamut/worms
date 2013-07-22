@@ -1,5 +1,6 @@
 #include "worms.h"
 #include "freeglut.h"
+#include <assert.h>
 
 const float kAccelRateTurning = 250.0f;
 const float kAccelRateDirect  = 500.0f;
@@ -44,9 +45,8 @@ void WormsApp::reset(bool randPos, bool randVel)
         p.nextSegment = -1;
         p.prevSegment = -1;
         p.wormId = i;
-        m_tails[i] = i;
     }
-    m_numTails = MAX_NUM_PARTICLES;
+    memset(m_tailFlags, 0xFF, sizeof(m_tailFlags));
 }
 
 //------------------------------------------------------------------------------
@@ -85,24 +85,33 @@ int WormsApp::getNearestTail(Particle const& p, float * pDistSq)
     int nearestIdx = -1;
     float nearestDistSq = 1e14f;
 
-    for( int i2=0; i2 < m_numTails; ++i2 )  // n^2 lame-o search
+    for( int t=0; t < MAX_NUM_PARTICLES / 32; ++t )
     {
-        Particle& p2 = m_particles[m_tails[i2]];
-
-        //assert(p2.prevSegment != -1);
-        if( p2.prevSegment != -1 )
+        uint32_t flags32 = m_tailFlags[t];
+        if( flags32 == 0 )  // fast skip empty blocks of 32 bit flags
             continue;
-        if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
-            continue;
-
-        float distSq = p.pos.DistSq(p2.pos);
-        if( distSq < nearestDistSq )
+        for( int t2=0; t2 < 32; ++t2 )
         {
-            nearestIdx = i2;
-            nearestDistSq = distSq;
+            if( (flags32 & (1UL<<t2)) == 0 )
+                continue;
 
-            if( distSq <= kSnapThresholdSq )
-                break;
+            int idx = t*32 + t2;
+            //assert(idx < MAX_NUM_PARTICLES);
+            Particle& p2 = m_particles[idx];
+            //assert(p2.prevSegment == -1);
+
+            if( p2.wormId == p.wormId ) // skip segments of the same worm (including self)
+                continue;
+
+            float distSq = p.pos.DistSq(p2.pos);
+            if( distSq < nearestDistSq )
+            {
+                nearestIdx = idx;
+                nearestDistSq = distSq;
+
+                if( distSq <= kSnapThresholdSq )
+                    break;
+            }
         }
     }
 
@@ -137,6 +146,11 @@ bool WormsApp::updateHeads(float deltaTime)
             p.vel.x = p.vel.y = 0.0f;
             for( int seg = i; seg != -1; seg = m_particles[seg].prevSegment ) // fixup wormIds
                 m_particles[seg].wormId = p2.wormId;
+
+            // clear flag of the tail we're chomping
+            uint32_t flagIdx = targetIdx / 32;
+            uint32_t flagOffset = targetIdx % 32;
+            m_tailFlags[flagIdx] &= ~(1UL<<flagOffset);
         }
         else
         {

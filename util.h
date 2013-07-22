@@ -2,6 +2,7 @@
 #include <math.h>
 
 //------------------------------------------------------------------------------
+typedef unsigned int uint32_t;
 
 class Vector2 {
 public:
